@@ -17,6 +17,9 @@ BiEncoderPassage = collections.namedtuple("BiEncoderPassage", ["text", "title"])
 
 
 def get_dpr_files(source_name) -> List[str]:
+    logger.info("biencoder_data:get_dpr_files: source_name=%s", source_name)
+    print(glob.glob(source_name))
+    print(os.path.exists(source_name))
     if os.path.exists(source_name) or glob.glob(source_name):
         return glob.glob(source_name)
     else:
@@ -414,6 +417,7 @@ class JsonlistQADataset(Dataset):
             query_special_suffix=query_special_suffix,
         )
         self.file = file
+        logger.info("Filename for Jsonl QA Dataset: %s", file)
         self.data_files = []
         self.normalize = normalize
         self.exclude_gold = exclude_gold
@@ -438,9 +442,28 @@ class JsonlistQADataset(Dataset):
         """
         # TODO for class
         self.data_files = get_dpr_files(self.file)
+        # list the files in directory.
         logger.info("Data files: %s", self.data_files)
         self.data = read_data_from_jsonl_files(self.data_files)
-        logger.info("Total cleaned data size: %d", len(self.data))
+        #self.data = self.data[40000:] # TODO: enlarge the filter
+        # for dt in self.data:
+            
+        #     dt["question"] = dt["query"]
+        #     entry = {
+        #         "title": dt["title"],
+        #         "text":  dt["SS"],
+        #         "score": 1000,
+        #         "title_score": 1,
+        #         "passage_id": dt["uniqid"]
+        #     }
+        #     dt["positive_ctxs"] = [entry]
+        #     del dt["query"]
+        #     del dt["SS"]
+        #     del dt["title"]
+        #     del dt["uniqid"]
+
+
+        logger.info("Total loaded data size: %d", len(self.data))
 
     def __getitem__(self, index) -> BiEncoderSample:
         """
@@ -451,7 +474,13 @@ class JsonlistQADataset(Dataset):
         json_sample = self.data[index]
         r.query = self._process_query(json_sample["query"])
 
-        positive_ctxs = [{"text": json_sample["SS"], "title": json_sample["title"]}]
+        positive_ctxs = [{
+            "text": json_sample["SS"], 
+            "title": json_sample["title"],
+            "score": 1000,
+            "title_score": 1,
+            "passage_id": json_sample["uniqid"]
+        }]
         if self.exclude_gold:
             ctxs = [ctx for ctx in positive_ctxs if "score" in ctx]
             if ctxs:

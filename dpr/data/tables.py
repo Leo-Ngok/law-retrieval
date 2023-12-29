@@ -18,7 +18,7 @@ console = logging.StreamHandler()
 console.setFormatter(log_formatter)
 logger.addHandler(console)
 
-nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "ner", "entity_ruler"])
+nlp = None #spacy.load("en_core_web_sm", disable=["parser", "tagger", "ner", "entity_ruler"])
 
 
 class Cell:

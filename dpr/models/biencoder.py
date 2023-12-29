@@ -330,7 +330,7 @@ def _select_span_with_token(text: str, tensorizer: Tensorizer, token_str: str = 
                 query_tensor = torch.cat([torch.tensor([cls_id]), query_tensor], dim=0)
 
             from dpr.models.reader import _pad_to_len
-
+            #from . import _pad_to_len
             query_tensor = _pad_to_len(query_tensor, tensorizer.get_pad_id(), tensorizer.max_length)
             query_tensor[-1] = tensorizer.tokenizer.sep_token_id
             # logger.info('aligned query_tensor %s', query_tensor)

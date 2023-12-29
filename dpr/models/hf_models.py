@@ -24,14 +24,14 @@ if transformers.__version__.startswith("4"):
     from transformers import BertTokenizer
     from transformers import RobertaTokenizer
 else:
-    from transformers.modeling_bert import BertConfig, BertModel
+    from transformers.modeling_bert import BertConfig, BertModel #type: ignore
     from transformers.optimization import AdamW
-    from transformers.tokenization_bert import BertTokenizer
-    from transformers.tokenization_roberta import RobertaTokenizer
+    from transformers.tokenization_bert import BertTokenizer #type: ignore
+    from transformers.tokenization_roberta import RobertaTokenizer #type: ignore
 
 from dpr.utils.data_utils import Tensorizer
 from dpr.models.biencoder import BiEncoder
-
+from dpr.models.reader import Reader
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +56,6 @@ def get_bert_biencoder_components(cfg, inference_only: bool = False, **kwargs):
     fix_ctx_encoder = cfg.encoder.fix_ctx_encoder if hasattr(cfg.encoder, "fix_ctx_encoder") else False
     # 构建双编码器
     biencoder = BiEncoder(question_encoder, ctx_encoder, fix_ctx_encoder=fix_ctx_encoder)
-
     optimizer = ( # 优化器相关, 可以忽略
         get_optimizer(
             biencoder,
@@ -184,6 +183,7 @@ def get_optimizer_grouped(
     adam_eps: float = 1e-8,
 ) -> torch.optim.Optimizer:
 
+    logger.info("Learning rate = %f", learning_rate)
     optimizer = AdamW(optimizer_grouped_parameters, lr=learning_rate, eps=adam_eps)
     return optimizer
 
@@ -299,13 +299,37 @@ class BertTensorizer(Tensorizer):
         """
         text = text.strip()
         # TODO for class
-        text_token_ids = self.tokenizer.encode(text, add_special_tokens=add_special_tokens)
-        title_token_ids = self.tokenizer.encode(title, add_special_tokens=add_special_tokens) if title else []
-        token_ids = self.tokenizer.cls_token_id + text_token_ids + title_token_ids
-        if apply_max_len:
-            token_ids = token_ids[: self.max_length - 1] + [self.tokenizer.sep_token_id]
-        if self.pad_to_max:
-            token_ids = token_ids + [self.tokenizer.pad_token_id] * (self.max_length - 1 - len(token_ids)) + [self.tokenizer.sep_token_id]
+        # text_token_ids = self.tokenizer.encode(text, add_special_tokens=add_special_tokens)
+        # title_token_ids = self.tokenizer.encode(title, add_special_tokens=add_special_tokens) if title else []
+        # token_ids = self.tokenizer.cls_token_id + text_token_ids + title_token_ids
+
+        if title:
+            token_ids = self.tokenizer.encode(
+                title,
+                text_pair=text,
+                add_special_tokens=add_special_tokens,
+                max_length=self.max_length if apply_max_len else 10000, #TODO: Modify
+                pad_to_max_length=False,
+                truncation=True,
+            )
+        else:
+            token_ids = self.tokenizer.encode(
+                text,
+                add_special_tokens=add_special_tokens,
+                max_length=self.max_length if apply_max_len else 10000,
+                pad_to_max_length=False,
+                truncation=True,
+            )
+        # if apply_max_len:
+        #     token_ids = token_ids[: self.max_length - 1] + [self.tokenizer.sep_token_id]
+        # if self.pad_to_max:
+        #     token_ids = token_ids + [self.tokenizer.pad_token_id] * (self.max_length - 1 - len(token_ids)) + [self.tokenizer.sep_token_id]
+        if self.pad_to_max and len(token_ids) < self.max_length:
+            token_ids = token_ids + \
+            [self.tokenizer.pad_token_id] * (self.max_length - len(token_ids))
+        if len(token_ids) >= self.max_length:
+            token_ids = token_ids[0:self.max_length] if apply_max_len else token_ids
+            token_ids[-1] = self.tokenizer.sep_token_id
         return torch.tensor(token_ids)
 
     def get_pair_separator_ids(self) -> T:

@@ -43,6 +43,10 @@ def read_data_from_json_files(paths: List[str]) -> List:
         with open(path, "r", encoding="utf-8") as f:
             logger.info("Reading file %s" % path)
             data = json.load(f)
+            if 'qw' in data:
+                data["positive_ctxs"] = data["qw"]
+            if 'ajName' in data:
+                data['title'] = data['ajName']
             results.extend(data)
             logger.info("Aggregated data size: {}".format(len(results)))
     return results
@@ -341,7 +345,8 @@ class LocalShardedDataIterator(ShardedDataIterator):
 
 class MultiSetDataIterator(object):
     """
-    Iterator over multiple data sources. Useful when all samples form a single batch should be from the same dataset.
+    Iterator over multiple data sources. 
+    Useful when all samples form a single batch should be from the same dataset.
     """
 
     def __init__(
@@ -352,11 +357,17 @@ class MultiSetDataIterator(object):
         sampling_rates: List = [],
         rank: int = 0,
     ): 
+        '''
+        Construct the data iterator for training. datasets should have a list of 
+        filenames loaded beforehand. It 'd then load the json contents to the iterator.
+        '''
         # randomized data loading to avoid file system congestion
         ds_list_copy = [ds for ds in datasets]
         rnd = random.Random(rank)
         rnd.shuffle(ds_list_copy)
         [ds.load_data() for ds in ds_list_copy]
+
+
         self.iterables = datasets
         data_lengths = [it.total_data_len() for it in datasets]
         self.total_data = sum(data_lengths)
@@ -393,7 +404,7 @@ class MultiSetDataIterator(object):
         )
 
         data_src_indices = []
-        iterators = []
+        iterators:list[Iterator[list]] = []
         for source, src_its in enumerate(self.max_its_pr_ds):
             logger.info(
                 "rank=%d; Multi set iteration: source %d, batches to be taken: %s",

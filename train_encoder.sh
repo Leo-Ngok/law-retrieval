@@ -4,20 +4,20 @@
 # 若需要从已经得到的checkpoint继续训练，可将下方checkpoint_file_name指定为checkpoint路径
 
 # TODO for class
-log_path="your_path/train/log/train.log"
-train_data_path="your_path/data/data_train.json"
-dev_data_path="your_path/data/data_dev.json"
-output_checkpoint_dir="your_path/train/checkpoint"
-model_file_path="your_path/downloads/model/Lawformer_model"
+log_path="./train.log"
+train_data_path="/mnt/d/github/law-retrieval/data/train_data.jsonl"
+dev_data_path="/mnt/d/github/law-retrieval/data/validation_data.jsonl"
+output_checkpoint_dir="/mnt/d/model_train/law_model"
+model_file_path="/mnt/d/hf/Lawformer"
 
-torchrun --nproc_per_node 4 \
+torchrun --nproc_per_node 1 \
     train_dense_encoder.py \
     fp16=True \
     encoder.pretrained_model_cfg=${model_file_path} \
-    encoder.sequence_length=2048 \
+    encoder.sequence_length=256 \
     train=biencoder_Law \
-    train.num_train_epochs=40 \
-    val_av_rank_start_epoch=40 \
+    train.num_train_epochs=4 \
+    val_av_rank_start_epoch=4 \
     checkpoint_file_name=dpr_biencoder \
     train_datasets=[Law_data_train] \
     datasets.Law_data_train.file=${train_data_path} \

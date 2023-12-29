@@ -12,8 +12,12 @@ logger = logging.getLogger(__name__)
 
 class BiencoderDatasetsCfg(object):
     def __init__(self, cfg: DictConfig):
+        '''setup train datasets and dev datasets pointers (filenames) to 
+        the dataset instance.
+        Loading is deferred.'''
         ds_cfg = cfg.datasets
         self.train_datasets_names = cfg.train_datasets
+        
         logger.info("train_datasets: %s", self.train_datasets_names)
         self.train_datasets = _init_datasets(self.train_datasets_names, ds_cfg)
         self.dev_datasets_names = cfg.dev_datasets

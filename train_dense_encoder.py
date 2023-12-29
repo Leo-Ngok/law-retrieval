@@ -24,7 +24,7 @@ from torch import Tensor as T
 from torch import nn
 
 from dpr.models import init_biencoder_components
-from dpr.models.biencoder import BiEncoderNllLoss, BiEncoderBatch
+from dpr.models.biencoder import BiEncoder, BiEncoderNllLoss, BiEncoderBatch
 from dpr.options import (
     setup_cfg_gpu,
     set_seed,
@@ -82,11 +82,13 @@ class BiEncoderTrainer(object):
             model,
             optimizer,
             cfg.device,
-            cfg.n_gpu,
+            cfg.n_gpu, # being set in options.py: setup_cfg_gpu
             cfg.local_rank,
-            cfg.fp16,
+            cfg.fp16, # specify in input arg.
             cfg.fp16_opt_level,
         )
+        model:nn.Module = model
+        optimizer:torch.optim.Optimizer = optimizer
         self.biencoder = model
         self.optimizer = optimizer
         self.tensorizer = tensorizer
@@ -96,6 +98,8 @@ class BiEncoderTrainer(object):
         self.best_validation_result = None
         self.best_cp_name = None
         self.cfg = cfg
+        # set up handles to datasets, in particular the filenames.
+        # Loading is deferred.
         self.ds_cfg = BiencoderDatasetsCfg(cfg)
 
         if saved_state:
@@ -161,6 +165,7 @@ class BiEncoderTrainer(object):
             logger.warning("No data found for training.")
             return
         # 在本次实验中, 默认gradient_accumulation_steps为1, 可以忽略
+        # Usage: refer to line 511
         updates_per_epoch = train_iterator.max_iterations // cfg.train.gradient_accumulation_steps 
 
         total_updates = updates_per_epoch * cfg.train.num_train_epochs
@@ -444,7 +449,7 @@ class BiEncoderTrainer(object):
         epoch_batches = train_data_iterator.max_iterations
         data_iteration = 0
 
-        biencoder = get_model_obj(self.biencoder)
+        biencoder:BiEncoder = get_model_obj(self.biencoder)
         dataset = 0
         for i, samples_batch in enumerate(train_data_iterator.iterate_ds_data(epoch=epoch)):
             if isinstance(samples_batch, Tuple):
@@ -478,6 +483,8 @@ class BiEncoderTrainer(object):
             rep_positions = selector.get_positions(biencoder_batch.question_ids, self.tensorizer)
 
             loss_scale = cfg.loss_scale_factors[dataset] if cfg.loss_scale_factors else None
+            
+            # derive forwards and calculate loss.
             loss, correct_cnt = _do_biencoder_fwd_pass( # 计算loss
                 self.biencoder,
                 biencoder_batch,
@@ -503,6 +510,7 @@ class BiEncoderTrainer(object):
                 if cfg.train.max_grad_norm > 0:
                     torch.nn.utils.clip_grad_norm_(self.biencoder.parameters(), cfg.train.max_grad_norm)
 
+            # since it is always 1, we always update the model parameters.
             if (i + 1) % cfg.train.gradient_accumulation_steps == 0:
                 self.optimizer.step()
                 scheduler.step()
@@ -771,6 +779,7 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    logger.info("Python version: %s", sys.version)
     logger.info("Sys.argv: %s", sys.argv)
     hydra_formatted_args = []
     # convert the cli params added by torch.distributed.launch into Hydra format

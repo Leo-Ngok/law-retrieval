@@ -1,2 +1,6 @@
 data/*.jsonl
 downloads/
+outputs/**
+train/**
+**/__pycache__/**
+train.log

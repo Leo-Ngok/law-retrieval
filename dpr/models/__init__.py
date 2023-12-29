@@ -31,7 +31,7 @@ def init_hf_bert_reader(args, **kwargs):
 def init_pytext_bert_biencoder(args, **kwargs):
     if importlib.util.find_spec("pytext") is None:
         raise RuntimeError("Please install pytext lib")
-    from .pytext_models import get_bert_biencoder_components
+    from .pytext_models import get_bert_biencoder_components #type: ignore
 
     return get_bert_biencoder_components(args, **kwargs)
 
@@ -39,7 +39,7 @@ def init_pytext_bert_biencoder(args, **kwargs):
 def init_fairseq_roberta_biencoder(args, **kwargs):
     if importlib.util.find_spec("fairseq") is None:
         raise RuntimeError("Please install fairseq lib")
-    from .fairseq_models import get_roberta_biencoder_components
+    from .fairseq_models import get_roberta_biencoder_components #type: ignore
 
     return get_roberta_biencoder_components(args, **kwargs)
 

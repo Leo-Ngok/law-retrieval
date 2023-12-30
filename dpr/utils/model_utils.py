@@ -48,8 +48,11 @@ def setup_for_distributed_mode(
             apex.amp.register_half_function(torch, "einsum")
         except ImportError:
             raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-        model, optimizer = amp.initialize(model, optimizer, opt_level=fp16_opt_level)
+        
+        if optimizer:
+            model, optimizer = amp.initialize(model, optimizer, opt_level=fp16_opt_level)
+        else:
+            model = amp.initialize(model, None, opt_level=fp16_opt_level)
 
     if n_gpu > 1:
         print("DataParallel with {} GPUs".format(n_gpu))

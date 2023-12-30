@@ -2,6 +2,7 @@ import collections
 import csv
 import json
 import logging
+import re
 import unicodedata
 
 import jsonlines

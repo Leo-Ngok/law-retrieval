@@ -1,0 +1,4 @@
+default:
+  _target_: dpr.data.retriever_data.CsvCtxSrc
+  file: "/mnt/d/github/THU_PASS/year3/Information_Retreival/Assignments/data/data/documents"
+  id_prefix: "wiki:"

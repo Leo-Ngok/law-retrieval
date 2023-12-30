@@ -39,17 +39,17 @@ def set_cfg_params_from_state(state: dict, cfg: DictConfig):
         saved_encoder_params = state["encoder"]
         # TODO: try to understand why cfg.encoder = state["encoder"] doesn't work
 
-        for k, v in saved_encoder_params.items():
+        # for k, v in saved_encoder_params.items():
 
-            # TODO: tmp fix
-            if k == "q_wav2vec_model_cfg":
-                k = "q_encoder_model_cfg"
-            if k == "q_wav2vec_cp_file":
-                k = "q_encoder_cp_file"
-            if k == "q_wav2vec_cp_file":
-                k = "q_encoder_cp_file"
+        #     # TODO: tmp fix
+        #     if k == "q_wav2vec_model_cfg":
+        #         k = "q_encoder_model_cfg"
+        #     if k == "q_wav2vec_cp_file":
+        #         k = "q_encoder_cp_file"
+        #     if k == "q_wav2vec_cp_file":
+        #         k = "q_encoder_cp_file"
 
-            setattr(cfg.encoder, k, v)
+        #     setattr(cfg.encoder, k, v)
     else:  # 'old' checkpoints backward compatibility support
         pass
         # cfg.encoder.pretrained_model_cfg = state["pretrained_model_cfg"]

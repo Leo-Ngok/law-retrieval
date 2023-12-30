@@ -3,4 +3,6 @@ downloads/
 outputs/**
 train/**
 **/__pycache__/**
-train.log
+*.log
+**.tsv
+**.gz

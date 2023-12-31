@@ -1,11 +1,10 @@
 # @package _group_
 
-
 lecard_short:
   _target_: dpr.data.retriever_data.JsonLawQASrc
-  file: 
-  ridx: 
-  question_attr: q_short
+  file: "/mnt/d/github/THU_PASS/year3/Information_Retreival/Assignments/data/data/query.json"
+  ridx: 5156
+  question_attr: q
 
 nq_test:
   _target_: dpr.data.retriever_data.CsvQASrc
@@ -39,4 +38,3 @@ webq_test:
 curatedtrec_test:
   _target_: dpr.data.retriever_data.CsvQASrc
   file: data.retriever.qas.curatedtrec-test
-

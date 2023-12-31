@@ -8,6 +8,7 @@ torchrun --nproc_per_node 1 \
     model_file="/mnt/d/model_train/law_model/dpr_biencoder.1" \
     ctx_sources=law_sources \
     ctx_src=default \
+    batch_size=128 \
     +base_path="/mnt/d/github/THU_PASS/year3/Information_Retreival/Assignments/data/data/documents" \
     out_file="embeddings.pickl" | tee debug.log
 

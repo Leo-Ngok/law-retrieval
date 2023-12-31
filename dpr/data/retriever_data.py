@@ -338,7 +338,14 @@ class JsonLawCtxSrc(RetrieverData):
         super().load_data()
         import os
         logger.info("Reading LeCard candidates directory %s", self.file)
-        for file in os.listdir(self.file):
+        counter = 0
+        dir = os.listdir(self.file)
+        logger.info("Total file count: %d", len(dir))
+        for file in dir:
+            counter += 1
+            if counter % 500 == 0 :
+                logger.info("%d files have been read", counter)
+            #if counter >= 1000: break
             with open(os.path.join(self.file, file)) as f:
                 data = json.load(f)
                 if self.id_prefix:

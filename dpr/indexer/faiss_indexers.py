@@ -84,7 +84,7 @@ class DenseIndexer(object):
 
 
 class DenseFlatIndexer(DenseIndexer):
-    def __init__(self, buffer_size: int = 50000):
+    def __init__(self, buffer_size: int = 49920):
         super(DenseFlatIndexer, self).__init__(buffer_size=buffer_size)
 
     def init_index(self, vector_sz: int):
@@ -93,8 +93,11 @@ class DenseFlatIndexer(DenseIndexer):
     def index_data(self, data: List[Tuple[object, np.array]]):
         n = len(data)
         # indexing in batches is beneficial for many faiss index types
+        logger.info("length of data is %d", n)
         for i in range(0, n, self.buffer_size):
+            # id
             db_ids = [t[0] for t in data[i : i + self.buffer_size]]
+            # context
             vectors = [np.reshape(t[1], (1, -1)) for t in data[i : i + self.buffer_size]]
             vectors = np.concatenate(vectors, axis=0)
             total_data = self._update_id_mapping(db_ids)
@@ -106,8 +109,16 @@ class DenseFlatIndexer(DenseIndexer):
 
     def search_knn(self, query_vectors: np.array, top_docs: int) -> List[Tuple[List[object], List[float]]]: #TODOgao
         scores, indexes = self.index.search(query_vectors, len(self.index_id_to_db_id))
+        with open('debug.txt','a') as debug_file:
+            print(scores, file=debug_file)
+            print(indexes, file=debug_file)
         # convert to external ids
-        db_ids = [[self.index_id_to_db_id[i] for i in query_top_idxs] for query_top_idxs in indexes]
+        db_ids = [ 
+            [
+                self.index_id_to_db_id[i] for i in query_top_idxs
+            ] 
+            for query_top_idxs in indexes
+        ]
         def max_score():
             result = []
             for i in range(len(db_ids)):

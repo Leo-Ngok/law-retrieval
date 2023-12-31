@@ -9,7 +9,7 @@ import collections
 import glob
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import torch
 from torch import nn
@@ -32,7 +32,7 @@ CheckpointState = collections.namedtuple(
 
 def setup_for_distributed_mode(
     model: nn.Module,
-    optimizer: torch.optim.Optimizer,
+    optimizer: Optional[torch.optim.Optimizer],
     device: object,
     n_gpu: int = 1,
     local_rank: int = -1,

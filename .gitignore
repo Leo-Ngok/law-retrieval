@@ -7,3 +7,6 @@ train/**
 **.tsv
 **.gz
 **/*.pickl
+contents_old.txt
+debug.txt
+received_*.json

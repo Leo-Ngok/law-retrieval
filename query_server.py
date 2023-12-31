@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+
+import asyncio
+import json
+from websockets.server import serve
+
+
+
 #!/usr/bin/env python3
 # Copyright (c) Facebook, Inc. and its affiliates.
 # All rights reserved.
@@ -15,7 +23,7 @@ import logging
 import pickle
 import time
 import zlib
-from typing import List, Optional, Tuple, Dict, Iterator
+from typing import Any, List, Optional, Tuple, Dict, Iterator
 
 import hydra
 import numpy as np
@@ -171,7 +179,6 @@ class LocalFaissRetriever(DenseRetriever):
         assert self.index
         results = self.index.search_knn(query_vectors, top_docs)
         logger.info("index search time: %f sec.", time.time() - time0)
-        self.index = None
         return results
 
 
@@ -259,9 +266,51 @@ def get_all_passages():
     with open('/mnt/d/github/law-retrieval/passage.pickl', 'rb') as prf:
         return pickle.load(prf)
 
+def pack_results(
+    passages: Dict[object, Tuple[str, str]],
+    questions: List[str],
+    answers: List[List[str]],
+    top_passages_and_scores: List[Tuple[List[object], List[float]]],
+    per_question_hits: List[List[bool]],
+):
+    # join passages text with the result ids, their questions and assigning has|no answer labels
+    merged_data = []
+    # assert len(per_question_hits) == len(questions) == len(answers)
+    for i, q in enumerate(questions):
+        q_answers = answers[i]
+        results_and_scores = top_passages_and_scores[i]
+        hits = per_question_hits[i]
+        docs = [passages[doc_id] for doc_id in results_and_scores[0]]
+        scores = [str(score) for score in results_and_scores[1]]
+        ctxs_num = len(hits)
+
+        results_item = {
+            "question": q,
+            "answers": q_answers,
+            "ctxs": [
+                {
+                    "id": results_and_scores[0][c],
+                    "title": docs[c][1],
+                    "text": docs[c][0],
+                    "score": scores[c],
+                    "has_answer": hits[c],
+                }
+                for c in range(ctxs_num)
+            ],
+        }
+
+        # if questions_extra_attr and questions_extra:
+        #    extra = questions_extra[i]
+        #    results_item[questions_extra_attr] = extra
+
+        merged_data.append(results_item)
+    return merged_data
+
+init_res: Any
 
 @hydra.main(config_path="conf", config_name="dense_retriever")
-def main(cfg: DictConfig):
+def retrieve_main(cfg: DictConfig):
+    logger.info("parameter initialization.")
     # region parameter initialization.
     cfg = setup_cfg_gpu(cfg)
     saved_state = load_states_from_checkpoint(cfg.model_file)
@@ -272,6 +321,7 @@ def main(cfg: DictConfig):
     logger.info("%s", OmegaConf.to_yaml(cfg))
     # endregion
 
+    logger.info("construct model")
     # region construct model
     tensorizer, encoder, _ = init_biencoder_components(cfg.encoder.encoder_model_type, cfg, inference_only=True)
 
@@ -294,6 +344,7 @@ def main(cfg: DictConfig):
     logger.info("Encoder vector_size=%d", vector_size)
     # endregion
     
+    logger.info("setup retriever.")
     # region setup retriever
     index:DenseFlatIndexer = hydra.utils.instantiate(cfg.indexers[cfg.indexer])
     logger.info("Local Index class %s ", type(index))
@@ -301,7 +352,8 @@ def main(cfg: DictConfig):
     index.init_index(vector_size)
     retriever = LocalFaissRetriever(encoder, cfg.batch_size, tensorizer, index)
     # endregion
-
+    
+    logger.info("index the passages.")
     # region index all passages
     all_passages = get_all_passages()
 
@@ -315,51 +367,43 @@ def main(cfg: DictConfig):
     logger.info("Reading all passages data from files: %s", input_paths)
     retriever.index_encoded_data(input_paths, index_buffer_sz, path_id_prefixes=None)
     # endregion
+    global init_res
+    init_res = (all_passages, retriever, cfg.n_docs, cfg.validation_workers, cfg.match)
 
-    # region fetch qa dataset
-    # get questions & answers
-    questions = []
-    answers = []
-    if not cfg.qa_dataset:
-        logger.warning("Please specify qa_dataset to use")
-        return
-
-    ds_key = cfg.qa_dataset
-    logger.info("qa_dataset: %s", ds_key)
-
-    qa_src:JsonLawQASrc = hydra.utils.instantiate(cfg.datasets[ds_key])
-    qa_src.load_data()
-
-    total_queries = len(qa_src) # defaults to 1
-    for i in range(total_queries):
-        questions.append(qa_src[i].query)
-        answers.append(qa_src[i].answers)
-
-    logger.info("questions len %d", len(questions))
-    questions_tensor = retriever.generate_question_vectors(questions, query_token=qa_src.special_query_token)
-
-    # endregion
+def query(all_passages, retriever:LocalFaissRetriever, query_ctx:str, doc_count: int, validation_workers: int, match_type: str):
+    questions = [query_ctx]
+    answers = [[]]
+    questions_tensor = retriever.generate_question_vectors(questions, query_token=None)
     
     # get top k results
-    top_results_and_scores = retriever.get_top_docs(questions_tensor.numpy(), cfg.n_docs)
+    top_results_and_scores = retriever.get_top_docs(questions_tensor.numpy(), doc_count)
     # convert retrieval results to readable documents
     questions_doc_hits = validate(
         all_passages,
         answers,
         top_results_and_scores,
-        cfg.validation_workers,
-        cfg.match,
+        validation_workers,
+        match_type,
     )
     # save the result to the file specified.
-    if cfg.out_file:
-        save_results(
-            all_passages,
-            questions,
-            answers,
-            top_results_and_scores,
-            questions_doc_hits,
-            cfg.out_file,
-        )
+    results = pack_results(all_passages,questions, answers, top_results_and_scores, questions_doc_hits)
+    return results
+
+async def echo(websocket):
+    global init_res
+    all_passages, retriever, n_docs, validation_workers, match_type =init_res
+    async for message in websocket:
+        message = json.loads(message)
+        if message['mode'] == 'query':
+            qry = message['content']
+            msg = query(all_passages, retriever, qry, n_docs, validation_workers, match_type)
+            await websocket.send(json.dumps(msg, ensure_ascii=False))
+
+async def main():
+    async with serve(echo, "localhost", 8765):
+        await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
-    main()
+    retrieve_main()
+    logger.info('initialization done')
+    asyncio.run(main())

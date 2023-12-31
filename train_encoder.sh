@@ -10,14 +10,15 @@ dev_data_path="/mnt/d/github/law-retrieval/data/validation_data.jsonl"
 output_checkpoint_dir="/mnt/d/model_train/law_model"
 model_file_path="/mnt/d/hf/Lawformer"
 
-torchrun --nproc_per_node 1 \
+torchrun --nproc_per_node 4 \
     train_dense_encoder.py \
     fp16=True \
     encoder.pretrained_model_cfg=${model_file_path} \
-    encoder.sequence_length=256 \
+    encoder.sequence_length=512 \
     train=biencoder_Law \
-    train.num_train_epochs=4 \
-    val_av_rank_start_epoch=4 \
+    train.num_train_epochs=20 \
+    val_av_rank_start_epoch=20 \
+    train.batch_size=8 \
     checkpoint_file_name=dpr_biencoder \
     train_datasets=[Law_data_train] \
     datasets.Law_data_train.file=${train_data_path} \

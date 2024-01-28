@@ -4,16 +4,38 @@ import asyncio
 import json
 from websockets.sync.client import connect
 
+query_ids = [1, 4738, 27, 1972, 5156, 24, 5223, 0, 861, 837]
+
+data_path = '/mnt/d/github/THU_PASS/year3/Information_Retreival/Assignments/data/data/'
+query_path = data_path + 'query.json'
+
+def load_json(file):
+    with open(file, 'r', encoding='utf-8') as f:
+        obj = json.load(f)
+    return obj
+
 def hello():
-    with connect("ws://localhost:8765") as websocket:
-        query = {
-            "mode": "query",
-            "content": "莫新国在长沙市酒后驾驶车辆被交通警察检查，血液酒精含量195毫克／100毫升。他随后被带到医院提取血样，检验结果显示酒精含量201.1毫克／100毫升。被告人莫新国被认定为精神残疾人，但在案发时被鉴定为处于普通醉酒状态，有完全刑事责任能力。他在日后主动投案，如实供述罪行。"
-        }
-        websocket.send(json.dumps(query))
-        message = websocket.recv()
-        #print(f"Received: {message}")
-    with open('received_contents_other.json', 'w') as wf:
-        print(message, file=wf)
+    q = load_json(query_path)
+    q = [x for x in q if x['ridx'] in query_ids]
+    print(len(q))
+    msglist = {}
+    for query in q:
+        with connect("ws://localhost:8765") as websocket:
+            print(len(query['q']))
+            __query = {
+                "mode": "query",
+                "content": query['q']
+            }
+            websocket.send(json.dumps(__query))
+            payload = json.loads(websocket.recv())
+            context_lst = payload[0]['ctxs']
+            contents = {}
+            for context in context_lst:
+                contents[context['id']] = float(context['score'])
+            
+            msglist[str(query['ridx'])] = contents
+
+    with open('received_contents_.json', 'w') as wf:
+        print(msglist, file=wf)
 
 hello()

@@ -160,7 +160,7 @@ class LocalFaissRetriever(DenseRetriever):
         self.index.index_data(buffer)
         logger.info("Data indexing completed.")
 
-    def get_top_docs(self, query_vectors: np.ndarray, top_docs: int = 100) -> List[Tuple[List[object], List[float]]]:
+    def get_top_docs(self, query_vectors: np.ndarray, top_docs: int = 30) -> List[Tuple[List[object], List[float]]]:
         """
         Does the retrieval of the best matching passages given the query vectors batch
         :param query_vectors:

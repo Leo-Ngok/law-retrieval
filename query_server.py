@@ -254,6 +254,7 @@ def iterate_encoded_files(vector_files: list, path_id_prefixes: Optional[List] =
             id_prefix = path_id_prefixes[i]
         with open(file, "rb") as reader:
             doc_vectors = pickle.load(reader)
+            logger.info("length of doc vectors: %d",len(doc_vectors))
             for doc in doc_vectors:
                 doc = list(doc)
                 if id_prefix and not str(doc[0]).startswith(id_prefix):
@@ -263,7 +264,7 @@ def iterate_encoded_files(vector_files: list, path_id_prefixes: Optional[List] =
 
 
 def get_all_passages():
-    with open('/mnt/d/github/law-retrieval/passage.pickl', 'rb') as prf:
+    with open('/mnt/d/github/law-retrieval/filtered_passage_100.pickl', 'rb') as prf:
         return pickle.load(prf)
 
 def pack_results(
@@ -403,7 +404,39 @@ async def main():
     async with serve(echo, "localhost", 8765):
         await asyncio.Future()  # run forever
 
+query_ids = [5223] # 5156 5223 #[1, 4738, 27, 1972, 5156, 24, 5223, 0, 861, 837]
+
+data_path = '/mnt/d/github/THU_PASS/year3/Information_Retreival/Assignments/data/data/'
+query_path = data_path + 'query.json'
+
+def load_json(file):
+    with open(file, 'r', encoding='utf-8') as f:
+        obj = json.load(f)
+    return obj
+
+def hello():
+    global init_res
+    all_passages, retriever, n_docs, validation_workers, match_type =init_res
+    q = load_json(query_path)
+    q = [x for x in q if x['ridx'] in query_ids]
+    print(len(q))
+    msglist = {}
+    for query__ in q:
+        msg = query(all_passages[str(query__['ridx'])], retriever, query__['q'], n_docs, validation_workers, match_type)
+
+        payload = msg
+        context_lst = payload[0]['ctxs']
+        contents = {}
+        for context in context_lst:
+            contents[context['id']] = float(context['score'])
+        
+        msglist[str(query__['ridx'])] = contents
+
+    with open(f'received_contents_{str(query_ids[0])}.json', 'w') as wf:
+        print(msglist, file=wf)
+
 if __name__ == "__main__":
     retrieve_main()
     logger.info('initialization done')
-    asyncio.run(main())
+    hello()
+    #asyncio.run(main())
